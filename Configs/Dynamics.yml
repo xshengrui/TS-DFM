@@ -16,7 +16,7 @@ scheduler:
   stop_tolerance: 400
 
 data:
-  path:  # path to transition1x.h5 file
+  path:  1 # path to transition1x.h5 file
   batch_size: 32
   
 dynamic_model:
