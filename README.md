@@ -1,4 +1,4 @@
-# Introduction
+# Introduction1
 
 This repo contains the code for "Generative Flow Model on Distance Geometry for Predicting Transition States of Chemical Reactions" published at *Nature Communications*.
 
