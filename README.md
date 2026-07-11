@@ -14,6 +14,32 @@ We have provided the trained checkpoints of baseline methods and our proposed TS
 
 For reproducing the results of TS-DFM, please run the Python scripts in the `Scripts` folder. The files containing hyperparameters are in the `Configs` folder.
 
+## Mixed RGD1 + Transition1x training
+
+The mixed-data configuration trains on all 176,898 reactions listed in the
+RGD1 CSV together with the 9,561-reaction Transition1x training split. Its
+validation and test sets remain the 225- and 287-reaction Transition1x splits.
+
+First create the sharded RGD1 cache:
+
+```bash
+python Scripts/preprocess_rgd1_full.py \
+  --source-zip "D:/path/to/RGD1.zip" \
+  --output-dir Data/processed/rgd1_full
+```
+
+Set `data.transition1x_path` in `Configs/Dynamics_mixed.yml` to the downloaded
+Transition1x HDF5 file, then start training with:
+
+```bash
+python Scripts/train_flow_matching_dist_ts1x.py \
+  --config_file Configs/Dynamics_mixed.yml
+```
+
+The RGD1 CSV `dataset` column is intentionally ignored. CSV reaction IDs are
+used as the full-data whitelist, while validation and testing use only the
+unchanged Transition1x manifests in `Data/`.
+
 The baseline methods are provided in the following folders:
 
 ````bash

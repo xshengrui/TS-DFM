@@ -16,7 +16,7 @@ from copy import deepcopy
 import torch.nn.functional as F
 from torch_scatter import scatter_add, scatter_mean
 
-from Data.Transition1x import generate_dataloader_dynamics
+from Data.dataloader_factory import build_dynamics_dataloaders
 from Model.model import DistFlowMatchingNetwork, ODEWrapper2
 from Model.backbone import generate_backbone
 from Model.head import generate_head
@@ -48,7 +48,7 @@ device = args.device
 seed_all(config.train.seed)
 torch.backends.cudnn.benchmark = True
 
-dataloaders = generate_dataloader_dynamics(config.data.path, config.data.batch_size)
+dataloaders = build_dynamics_dataloaders(config)
 dynamic_model = DistFlowMatchingNetwork(**config.dynamic_model.parameters)
 ode = ODEWrapper2(dynamic_model)
 

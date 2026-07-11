@@ -18,8 +18,6 @@ import torch_geometric
 from ase import Atoms
 from ase.mep.neb import NEB, NEBTools, NEBOptimizer
 
-from Utils.ase_utils import construct_atoms
-
 def calculate_loss_coord(adj_matrix, coord, edge_index):
     src = edge_index[0]
     dst = edge_index[1]
@@ -29,6 +27,8 @@ def calculate_loss_coord(adj_matrix, coord, edge_index):
     return loss
 
 def pairwise_dist_to_coord(x, reactant_pos, product_pos, pairwise_distance_ts_pred):
+    from Utils.ase_utils import construct_atoms
+
     reactant = construct_atoms(x, reactant_pos)
     product = construct_atoms(x, product_pos)
 
