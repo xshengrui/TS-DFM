@@ -23,7 +23,7 @@ data:
 
 dynamic_model:
   parameters:
-    hidden_dim:256              #128
+    hidden_dim: 256              #128
     cutoff: 20.0
     max_embedding: 100
     num_layers: 12              #6
