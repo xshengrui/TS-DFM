@@ -131,3 +131,4 @@ oa_reactdiff/trainer/wandb
 .sii/
 Configs/Dynamics.yml
 
+Data/processed.zip
