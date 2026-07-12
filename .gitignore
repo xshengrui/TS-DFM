@@ -2,6 +2,8 @@
 Data/Transition1x.h5
 Data/processed/
 
+
+logs/
 __pycache__/
 
 
@@ -128,3 +130,4 @@ oa_reactdiff/trainer/wandb
 .h5  # 
 .sii/
 Configs/Dynamics.yml
+

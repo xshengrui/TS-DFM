@@ -1,6 +1,6 @@
 train:
   seed: 2025
-  epochs: 2000
+  epochs: 2000 # 2000
   save_path: logs/dynamics_flow
   log_interval: 10
   val_interval: 1
@@ -16,8 +16,8 @@ scheduler:
   stop_tolerance: 400
 
 data:
-  path:  1 # path to transition1x.h5 file
-  batch_size: 32
+  path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5   # path to transition1x.h5 file
+  batch_size: 256 #64
   
 dynamic_model:
   parameters: 
