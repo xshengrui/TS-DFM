@@ -18,12 +18,12 @@ scheduler:
 data:
   transition1x_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5  # Set to the Transition1x HDF5 file.
   rgd1_cache_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/processed/rgd1_full
-  batch_size: 32
+  batch_size: 256
   num_workers: 0
 
 dynamic_model:
   parameters:
-    hidden_dim: 128
+    hidden_dim:256              #128
     cutoff: 20.0
     max_embedding: 100
-    num_layers: 6
+    num_layers: 12              #6
