@@ -20,6 +20,20 @@ def _factory_module():
 
 
 class TrainingDataEntrypointTests(unittest.TestCase):
+    def test_mix_server_script_uses_mixed_config(self):
+        script = ROOT / "run_scripts" / "run_mix_paper.sh"
+        self.assertTrue(script.is_file(), "Mixed server training script is missing")
+
+        content = script.read_text(encoding="utf-8")
+        self.assertIn("conda activate reactot", content)
+        self.assertIn(
+            "cd /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM",
+            content,
+        )
+        self.assertIn("--config_file Configs/Dynamics_mixed.yml", content)
+        self.assertIn("--log_prefix tsdfm_mix", content)
+        self.assertIn("--device cuda", content)
+
     def test_preprocess_cli_exposes_source_output_and_shard_options(self):
         script = ROOT / "Scripts" / "preprocess_rgd1_full.py"
         self.assertTrue(script.is_file(), "RGD1 preprocessing CLI is missing")
