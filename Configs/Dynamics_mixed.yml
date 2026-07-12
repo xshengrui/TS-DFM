@@ -19,7 +19,7 @@ data:
   transition1x_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5  # Set to the Transition1x HDF5 file.
   rgd1_cache_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/processed/rgd1_full
   batch_size: 64
-  num_workers: 0
+  num_workers: 4
 
 dynamic_model:
   parameters:
