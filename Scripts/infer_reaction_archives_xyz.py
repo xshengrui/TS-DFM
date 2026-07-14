@@ -264,3 +264,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+  python Scripts/infer_reaction_archives_xyz.py \
+  --config Configs/Dynamics.yml \
+  --checkpoint logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/checkpoints/checkpoint_best.pth \
+  --archives \
+    Data/GDB-10-rxn_raw.tar.gz \
+    Data/GDB-17-rxn_raw.tar.gz \
+  --output logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/gdb_xyz \
+  --device cuda
+"""
