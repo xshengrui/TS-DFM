@@ -1,7 +1,7 @@
 .sii/ide-port
 Data/Transition1x.h5
 Data/processed/
-
+*.zip
 
 logs/
 __pycache__/
