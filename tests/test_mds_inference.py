@@ -68,6 +68,30 @@ class MdsReconstructionTests(unittest.TestCase):
             rtol=1e-5,
         )
 
+    def test_paper_reconstruction_uses_linear_interpolation_without_random_noise(self):
+        module = _load_module()
+        src, dst = torch.where(~torch.eye(4, dtype=torch.bool))
+        edge_distances = self.distances[src, dst]
+        reactant = self.coords + torch.tensor([0.2, -0.1, 0.05], dtype=torch.float64)
+        product = self.coords + torch.tensor([-0.2, 0.1, -0.05], dtype=torch.float64)
+
+        with patch("torch.randn_like", side_effect=AssertionError("random noise used")):
+            reconstructed, loss = module.pairwise_dist_to_coord_linear_interp(
+                reactant,
+                product,
+                edge_distances,
+                max_iter=20,
+                lr=0.1,
+            )
+
+        self.assertLess(float(loss), 1e-8)
+        torch.testing.assert_close(
+            torch.cdist(reconstructed, reconstructed),
+            self.distances,
+            atol=1e-5,
+            rtol=1e-5,
+        )
+
     def test_additional_mds_clis_preserve_required_dataset_inputs(self):
         for script, dataset_option in (
             (T1X_SCRIPT, "--hdf5"),

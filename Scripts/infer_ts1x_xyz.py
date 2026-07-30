@@ -29,6 +29,18 @@ def build_parser():
         help="ODE midpoint integration step size (default: 0.05)",
     )
     parser.add_argument(
+        "--lbfgs-max-iter",
+        type=int,
+        default=100,
+        help="Maximum L-BFGS iterations for coordinate reconstruction (default: 100)",
+    )
+    parser.add_argument(
+        "--lbfgs-lr",
+        type=float,
+        default=0.1,
+        help="L-BFGS learning rate for coordinate reconstruction (default: 0.1)",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Allow overwriting an existing inference output directory",
@@ -68,9 +80,9 @@ def run_inference(args):
     from Utils import (
         Kabsch_alignment,
         generate_fully_connected,
-        pairwise_dist_to_coord,
         seed_all,
     )
+    from Utils.distance_geometry import pairwise_dist_to_coord_linear_interp
 
     config_path = Path(args.config)
     checkpoint_path = Path(args.checkpoint)
@@ -89,6 +101,10 @@ def run_inference(args):
 
     if args.step_size <= 0:
         raise ValueError("--step-size must be greater than zero")
+    if args.lbfgs_max_iter <= 0:
+        raise ValueError("--lbfgs-max-iter must be greater than zero")
+    if args.lbfgs_lr <= 0:
+        raise ValueError("--lbfgs-lr must be greater than zero")
     if args.device.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError(f"CUDA was requested ({args.device}) but is not available")
 
@@ -122,7 +138,10 @@ def run_inference(args):
         "reaction",
         "atom_count",
         "predicted_xyz",
+        "reconstruction_method",
         "reconstruction_loss",
+        "lbfgs_max_iter",
+        "lbfgs_lr",
     )
 
     with (
@@ -177,8 +196,12 @@ def run_inference(args):
                     ).detach()
 
                 # Coordinate reconstruction uses LBFGS and therefore must run with gradients.
-                pred_pos, reconstruction_loss = pairwise_dist_to_coord(
-                    x, reactant_pos, product_pos, dist_pred
+                pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
+                    reactant_pos,
+                    product_pos,
+                    dist_pred,
+                    max_iter=args.lbfgs_max_iter,
+                    lr=args.lbfgs_lr,
                 )
                 pred_pos = pred_pos.detach()
                 reconstruction_loss = float(reconstruction_loss.detach().cpu().item())
@@ -195,6 +218,7 @@ def run_inference(args):
                 atoms.info.update(
                     formula=str(formula),
                     reaction=str(reaction),
+                    reconstruction_method="linear_interp_lbfgs",
                     reconstruction_loss=reconstruction_loss,
                 )
                 write(output_dir / filename, atoms, format="extxyz")
@@ -206,7 +230,10 @@ def run_inference(args):
                         "reaction": reaction,
                         "atom_count": len(x),
                         "predicted_xyz": filename,
+                        "reconstruction_method": "linear_interp_lbfgs",
                         "reconstruction_loss": reconstruction_loss,
+                        "lbfgs_max_iter": args.lbfgs_max_iter,
+                        "lbfgs_lr": args.lbfgs_lr,
                     }
                 )
                 manifest_file.flush()

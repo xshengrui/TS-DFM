@@ -953,7 +953,8 @@ class ODEWrapper(torch.nn.Module):
     def forward(self, x, edge_index, dist_reactant, dist_product, dist_lin_interp, batch, step_size=0.05):
         def partial_func(t, dist_pred):
             return self.dynamics(torch.ones_like(x, dtype=torch.float32).unsqueeze(-1) * t, x, edge_index, dist_reactant, dist_product, dist_pred, batch)
-        pred = odeint_adjoint(partial_func, dist_lin_interp, torch.tensor([0.0, 1.0]), method="midpoint", options=dict(step_size=step_size), adjoint_rtol=1e-4, adjoint_atol=1e-4, rtol=1e-4, atol=1e-4, adjoint_params=self.dynamics.parameters())[-1]
+        time_span = dist_lin_interp.new_tensor([0.0, 1.0])
+        pred = odeint_adjoint(partial_func, dist_lin_interp, time_span, method="midpoint", options=dict(step_size=step_size), adjoint_rtol=1e-4, adjoint_atol=1e-4, rtol=1e-4, atol=1e-4, adjoint_params=self.dynamics.parameters())[-1]
         return pred
     
 class ODEWrapper2(torch.nn.Module):
@@ -966,5 +967,6 @@ class ODEWrapper2(torch.nn.Module):
         def partial_func(t, dist_pred):
             # return self.dynamics(torch.ones_like(x, dtype=torch.float32).unsqueeze(-1) * t, x, edge_index, dist_reactant, dist_product, dist_pred, batch) - (dist_reactant + dist_product) / 2
             return self.dynamics(torch.ones_like(x, dtype=torch.float32).unsqueeze(-1) * t, x, edge_index, dist_reactant, dist_product, dist_pred, batch) / (1 - t)
-        pred = odeint_adjoint(partial_func, dist_lin_interp, torch.tensor([0.0, 1.0]), method="midpoint", options=dict(step_size=step_size), adjoint_rtol=1e-4, adjoint_atol=1e-4, rtol=1e-4, atol=1e-4, adjoint_params=self.dynamics.parameters())[-1]
+        time_span = dist_lin_interp.new_tensor([0.0, 1.0])
+        pred = odeint_adjoint(partial_func, dist_lin_interp, time_span, method="midpoint", options=dict(step_size=step_size), adjoint_rtol=1e-4, adjoint_atol=1e-4, rtol=1e-4, atol=1e-4, adjoint_params=self.dynamics.parameters())[-1]
         return pred

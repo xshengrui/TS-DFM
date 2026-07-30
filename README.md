@@ -14,7 +14,50 @@ We have provided the trained checkpoints of baseline methods and our proposed TS
 
 For reproducing the results of TS-DFM, please run the Python scripts in the `Scripts` folder. The files containing hyperparameters are in the `Configs` folder.
 
+## Transition1x paper setting
+
+The main-paper Transition1x result in Table 1 uses `Configs/Dynamics.yml`:
+
+- batch size: 32
+- TSDVNet hidden dimension: 128
+- update blocks: 6
+- cutoff: 20 Angstrom
+- learning rate: 5e-4
+- training noise scale: 0.1
+- ODE inference step size: 0.05
+
+After setting `data.path` in `Configs/Dynamics.yml` to the downloaded
+Transition1x HDF5 file, train with:
+
+```bash
+python Scripts/train_flow_matching_dist_ts1x.py \
+  --config_file Configs/Dynamics.yml \
+  --log_prefix tsdfm_ts1x \
+  --device cuda
+```
+
+The training script reports validation/test loss on the predicted TS distance
+matrix. To compare with the paper's RMSD/DMAE values, generate XYZ structures
+and evaluate them with the paper metrics:
+
+```bash
+python -m Scripts.infer_ts1x_xyz \
+  --config Configs/Dynamics.yml \
+  --checkpoint logs/dynamics_flow/<run>/checkpoints/checkpoint_best.pth \
+  --hdf5 Data/Transition1x.h5 \
+  --output logs/dynamics_flow/<run>/test_xyz \
+  --device cuda
+
+python -m Scripts.evaluate_ts1x_xyz \
+  --hdf5 Data/Transition1x.h5 \
+  --pred-dir logs/dynamics_flow/<run>/test_xyz \
+  --output-csv logs/dynamics_flow/<run>/test_xyz/metrics.csv
+```
+
 ## Mixed RGD1 + Transition1x training
+
+This is a custom mixed-data experiment and should not be directly compared with
+the Transition1x-only result reported in the main paper Table 1.
 
 The mixed-data configuration trains on all 176,898 reactions listed in the
 RGD1 CSV together with the 9,561-reaction Transition1x training split. Its

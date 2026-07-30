@@ -31,8 +31,9 @@ parser.add_argument('--log_prefix', default='logs')
 parser.add_argument('--notes', default=' ')
 parser.add_argument('--device', default='cuda')
 parser.add_argument('--resume_status', default=' ')
-parser.add_argument('--random', action='store_true')
-parser.add_argument('--sigma', default=1.0, type=float)
+parser.add_argument('--random', action='store_true', help='Enable noise in flow matching training.')
+parser.add_argument('--no-random', action='store_true', help='Disable config-defined training noise.')
+parser.add_argument('--sigma', default=None, type=float, help='Override config.train.noise_scale.')
 args = parser.parse_args()
 
 dtype = torch.float32
@@ -42,6 +43,17 @@ with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
 config = EasyDict(config)
 config.notes = args.notes
+
+use_random_noise = bool(getattr(config.train, 'random_noise', False))
+if args.random:
+    use_random_noise = True
+if args.no_random:
+    use_random_noise = False
+noise_scale = float(
+    args.sigma
+    if args.sigma is not None
+    else getattr(config.train, 'noise_scale', 0.0)
+)
 
 device = args.device
 
@@ -115,9 +127,9 @@ def get_loss_train(model, data):
 
     dist_t = (1 - time[src].squeeze()) * dist_lin_interp + time[src].squeeze() * dist_transition_state
 
-    if args.random:
+    if use_random_noise:
         temp = torch.ones_like(time)
-        sigma_t = args.sigma * temp
+        sigma_t = noise_scale * temp
         
         rand_t = torch.randn_like(dist_t)
 
@@ -177,7 +189,7 @@ def train(epoch, dataloader_train, config):
         if (not norm.isinf() and not norm.isnan()):
             optimizer.step()
 
-        batch_size = config.data.batch_size
+        batch_size = int(getattr(data, "num_graphs", torch.max(batch).item() + 1))
         res['loss'] += loss.item() * batch_size
         res['counter'] += batch_size
         res['loss_arr'].append(loss.item())
@@ -193,7 +205,7 @@ def valid(epoch, loader, config):
     dynamic_model.eval()
     for i, data in enumerate(loader):
         loss = get_loss_val(ode, data)
-        batch_size = config.data.batch_size
+        batch_size = int(getattr(data, "num_graphs", torch.max(data.batch).item() + 1))
         
         res['loss'] += loss.item() * batch_size
         res['counter'] += batch_size

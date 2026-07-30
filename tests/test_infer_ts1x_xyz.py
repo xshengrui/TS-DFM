@@ -28,7 +28,14 @@ class Transition1xXyzInferenceTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        for option in ("--config", "--checkpoint", "--hdf5", "--output"):
+        for option in (
+            "--config",
+            "--checkpoint",
+            "--hdf5",
+            "--output",
+            "--lbfgs-max-iter",
+            "--lbfgs-lr",
+        ):
             self.assertIn(option, result.stdout)
 
     def test_output_filename_is_stable_and_filesystem_safe(self):
