@@ -103,6 +103,13 @@ if args.resume_status != " ":
     lr_scheduler.load_state_dict(temp['scheduler'])
     print("Status loaded")
 
+
+def get_graph_count(data):
+    num_graphs = getattr(data, "num_graphs", None)
+    if num_graphs is not None:
+        return int(num_graphs)
+    return int(torch.max(data.batch).item() + 1)
+
 def get_loss_train(model, data):
     x = data.x.to(device)
     reactant_pos = data.reactant_pos.to(device)
@@ -189,7 +196,7 @@ def train(epoch, dataloader_train, config):
         if (not norm.isinf() and not norm.isnan()):
             optimizer.step()
 
-        batch_size = int(getattr(data, "num_graphs", torch.max(batch).item() + 1))
+        batch_size = get_graph_count(data)
         res['loss'] += loss.item() * batch_size
         res['counter'] += batch_size
         res['loss_arr'].append(loss.item())
@@ -205,7 +212,7 @@ def valid(epoch, loader, config):
     dynamic_model.eval()
     for i, data in enumerate(loader):
         loss = get_loss_val(ode, data)
-        batch_size = int(getattr(data, "num_graphs", torch.max(data.batch).item() + 1))
+        batch_size = get_graph_count(data)
         
         res['loss'] += loss.item() * batch_size
         res['counter'] += batch_size
