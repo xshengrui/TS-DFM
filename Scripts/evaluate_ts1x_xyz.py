@@ -189,3 +189,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+python -m Scripts.evaluate_ts1x_xyz --hdf5 Data/Transition1x.h5 --pred-dir logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/test_xyz_fixed --output-csv logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/test_xyz_fixed/metrics.csv
+"""
