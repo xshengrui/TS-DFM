@@ -110,12 +110,19 @@ def get_graph_count(data):
         return int(num_graphs)
     return int(torch.max(data.batch).item() + 1)
 
+
+def move_batch_to_device(data):
+    non_blocking = str(device).startswith("cuda")
+    return (
+        data.x.to(device, non_blocking=non_blocking),
+        data.reactant_pos.to(device, non_blocking=non_blocking),
+        data.product_pos.to(device, non_blocking=non_blocking),
+        data.transition_state_pos.to(device, non_blocking=non_blocking),
+        data.batch.to(device, non_blocking=non_blocking),
+    )
+
 def get_loss_train(model, data):
-    x = data.x.to(device)
-    reactant_pos = data.reactant_pos.to(device)
-    product_pos = data.product_pos.to(device)
-    transition_state_pos = data.transition_state_pos.to(device)
-    batch = data.batch.to(device)
+    x, reactant_pos, product_pos, transition_state_pos, batch = move_batch_to_device(data)
 
     time = torch.rand((torch.max(batch) + 1, 1), dtype=torch.float32, device=device)[batch]
 
@@ -155,11 +162,7 @@ def get_loss_train(model, data):
     return loss
 
 def get_loss_val(model, data):
-    x = data.x.to(device)
-    reactant_pos = data.reactant_pos.to(device)
-    product_pos = data.product_pos.to(device)
-    transition_state_pos = data.transition_state_pos.to(device)
-    batch = data.batch.to(device)
+    x, reactant_pos, product_pos, transition_state_pos, batch = move_batch_to_device(data)
 
     src, dst = generate_fully_connected(batch)
 

@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Paper Transition1x TS-DFM reproduction.
 # Set Configs/Dynamics.yml:data.path to the downloaded Transition1x.h5 first.
-# Keep data.batch_size=32 for paper reproduction. Tune dataloader workers in
-# Configs/Dynamics.yml if GPU utilization is below 50%.
+# Keep data.batch_size=32 for paper reproduction. Configs/Dynamics.yml defaults
+# to dataloader workers tuned for 4090-class GPUs.
 source ~/.bashrc
 conda activate reactot
 
