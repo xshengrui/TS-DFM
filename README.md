@@ -54,6 +54,11 @@ python -m Scripts.evaluate_ts1x_xyz \
   --output-csv logs/dynamics_flow/<run>/test_xyz/metrics.csv
 ```
 
+For server training, keep `data.batch_size: 32` for paper reproduction. Improve
+GPU utilization with `data.num_workers`, `pin_memory`, `persistent_workers`,
+and `prefetch_factor` instead of increasing the batch size. See
+`docs/reproduction_audit.md` for the checked settings.
+
 ## Mixed RGD1 + Transition1x training
 
 This is a custom mixed-data experiment and should not be directly compared with

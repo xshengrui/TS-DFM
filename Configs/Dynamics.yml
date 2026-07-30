@@ -20,6 +20,10 @@ scheduler:
 data:
   path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5   # path to transition1x.h5 file
   batch_size: 32
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
   
 dynamic_model:
   parameters: 

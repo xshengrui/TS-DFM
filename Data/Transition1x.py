@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
 from torch.utils.data import IterableDataset, Dataset
+from torch.utils.data import get_worker_info
 from torch_geometric.transforms import Compose
 from torch_geometric.utils import to_networkx
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
@@ -37,6 +38,14 @@ REFERENCE_ENERGIES = {
     8: -2041.8396277138045,
     9: -2712.8213146878606,
 }
+
+
+def _partition_for_worker(items, worker_id, num_workers):
+    if num_workers <= 0:
+        raise ValueError("num_workers must be positive")
+    if worker_id < 0 or worker_id >= num_workers:
+        raise ValueError("worker_id is outside the worker range")
+    return list(items)[worker_id::num_workers]
 
 
 def get_molecular_reference_energy(atomic_numbers):
@@ -188,14 +197,21 @@ class Dataset_dynamics(IterableDataset):
             self.datalist = pickle.load(f)
 
     def __iter__(self):
+        worker = get_worker_info()
+        if worker is None:
+            datalist = list(self.datalist)
+        else:
+            datalist = _partition_for_worker(
+                self.datalist, worker.id, worker.num_workers
+            )
         with h5py.File(self.hdf5_file, "r") as f:
             data = f['data']
-            random.shuffle(self.datalist)
-            for formula, rxn in self.datalist:
+            random.shuffle(datalist)
+            for formula, rxn in datalist:
                 yield get_dynamics_data(formula, rxn, data)
                     
     def __len__(self):
-        pass
+        return len(self.datalist)
         
 
 class Dataset_potential(IterableDataset):
@@ -341,11 +357,26 @@ class Dataset_dynamics_neb_3(IterableDataset):
         pass
 
 
-def generate_dataloader_dynamics(hdf5_file, batch_size):
+def generate_dataloader_dynamics(
+    hdf5_file,
+    batch_size,
+    num_workers=0,
+    pin_memory=False,
+    persistent_workers=False,
+    prefetch_factor=None,
+):
     dataloaders = {}
-    dataloaders['train'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'train'), batch_size = batch_size)
-    dataloaders['val'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'valid'), batch_size = batch_size)
-    dataloaders['test'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'test'), batch_size = batch_size)
+    loader_options = {
+        "batch_size": batch_size,
+        "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "persistent_workers": persistent_workers and num_workers > 0,
+    }
+    if num_workers > 0 and prefetch_factor is not None:
+        loader_options["prefetch_factor"] = prefetch_factor
+    dataloaders['train'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'train'), **loader_options)
+    dataloaders['val'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'valid'), **loader_options)
+    dataloaders['test'] = DataLoader(dataset=Dataset_dynamics(hdf5_file, 'test'), **loader_options)
     return dataloaders
 
 

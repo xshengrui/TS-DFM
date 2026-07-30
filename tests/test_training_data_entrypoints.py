@@ -64,7 +64,14 @@ class TrainingDataEntrypointTests(unittest.TestCase):
         module = _factory_module()
         config = SimpleNamespace(
             train=SimpleNamespace(seed=5),
-            data=SimpleNamespace(path="transition1x.h5", batch_size=8),
+            data=SimpleNamespace(
+                path="transition1x.h5",
+                batch_size=8,
+                num_workers=4,
+                pin_memory=True,
+                persistent_workers=True,
+                prefetch_factor=2,
+            ),
         )
         sentinel = object()
 
@@ -72,7 +79,14 @@ class TrainingDataEntrypointTests(unittest.TestCase):
             result = module.build_dynamics_dataloaders(config)
 
         self.assertIs(result, sentinel)
-        loader.assert_called_once_with("transition1x.h5", 8)
+        loader.assert_called_once_with(
+            "transition1x.h5",
+            8,
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=2,
+        )
 
     def test_factory_selects_mixed_route_when_cache_is_configured(self):
         module = _factory_module()
