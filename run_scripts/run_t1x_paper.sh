@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # Paper Transition1x TS-DFM reproduction.
 # Set Configs/Dynamics.yml:data.path to the downloaded Transition1x.h5 first.

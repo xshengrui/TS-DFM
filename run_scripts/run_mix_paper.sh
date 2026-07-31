@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # Custom mixed RGD1 + Transition1x experiment.
 # This is not the Transition1x-only setup reported in the main paper Table 1.
