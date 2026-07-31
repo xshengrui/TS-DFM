@@ -34,6 +34,9 @@ parser.add_argument('--resume_status', default=' ')
 parser.add_argument('--random', action='store_true', help='Enable noise in flow matching training.')
 parser.add_argument('--no-random', action='store_true', help='Disable config-defined training noise.')
 parser.add_argument('--sigma', default=None, type=float, help='Override config.train.noise_scale.')
+parser.add_argument('--seed', default=None, type=int, help='Override config.train.seed.')
+parser.add_argument('--num_workers', default=None, type=int, help='Override config.data.num_workers.')
+parser.add_argument('--prefetch_factor', default=None, type=int, help='Override config.data.prefetch_factor.')
 args = parser.parse_args()
 
 dtype = torch.float32
@@ -43,6 +46,12 @@ with open(config_path, 'r') as f:
     config = yaml.safe_load(f)
 config = EasyDict(config)
 config.notes = args.notes
+if args.seed is not None:
+    config.train.seed = args.seed
+if args.num_workers is not None:
+    config.data.num_workers = args.num_workers
+if args.prefetch_factor is not None:
+    config.data.prefetch_factor = args.prefetch_factor
 
 use_random_noise = bool(getattr(config.train, 'random_noise', False))
 if args.random:

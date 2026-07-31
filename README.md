@@ -59,6 +59,16 @@ GPU utilization with `data.num_workers`, `pin_memory`, `persistent_workers`,
 and `prefetch_factor` instead of increasing the batch size. See
 `docs/reproduction_audit.md` for the checked settings.
 
+If the cluster recycles jobs because one training process keeps GPU utilization
+too low, run independent replicas on the same GPU:
+
+```bash
+bash run_scripts/run_t1x_paper_parallel.sh
+```
+
+The default launches seed 2025 and 2026. Use the seed 2025 run as the primary
+paper-reproduction run; the extra replica is for utilization and seed checking.
+
 ## Mixed RGD1 + Transition1x training
 
 This is a custom mixed-data experiment and should not be directly compared with
