@@ -56,6 +56,28 @@ class Transition1xXyzEvaluationTests(unittest.TestCase):
         self.assertLess(module.calc_rmsd(predicted, target), 1e-12)
         self.assertLess(module.calc_dmae(predicted, target), 1e-12)
 
+    def test_reflection_allowed_rmsd_matches_distance_geometry_ambiguity(self):
+        module = _load_module()
+        target = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 2.0, 0.0],
+                [0.0, 0.0, 3.0],
+            ],
+            dtype=float,
+        )
+        reflected = target.copy()
+        reflected[:, 2] *= -1
+        reflected += np.array([3.0, -2.0, 0.5])
+
+        self.assertGreater(module.calc_rmsd(reflected, target), 0.5)
+        self.assertLess(
+            module.calc_rmsd(reflected, target, allow_reflection=True),
+            1e-12,
+        )
+        self.assertLess(module.calc_dmae(reflected, target), 1e-12)
+
 
 if __name__ == "__main__":
     unittest.main()

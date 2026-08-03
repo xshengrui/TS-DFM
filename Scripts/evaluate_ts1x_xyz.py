@@ -36,7 +36,7 @@ def build_parser():
     return parser
 
 
-def kabsch_align(predicted, target):
+def kabsch_align(predicted, target, allow_reflection=False):
     if predicted.shape != target.shape or predicted.ndim != 2:
         raise ValueError("predicted and target coordinates must have matching [N, D] shapes")
     pred_center = predicted.mean(axis=0, keepdims=True)
@@ -44,14 +44,17 @@ def kabsch_align(predicted, target):
     pred = predicted - pred_center
     ref = target - target_center
     u, _, vh = np.linalg.svd(pred.T @ ref)
-    correction = np.eye(predicted.shape[1])
-    correction[-1, -1] = np.linalg.det(u @ vh)
-    rotation = u @ correction @ vh
+    if allow_reflection:
+        rotation = u @ vh
+    else:
+        correction = np.eye(predicted.shape[1])
+        correction[-1, -1] = np.linalg.det(u @ vh)
+        rotation = u @ correction @ vh
     return pred @ rotation + target_center
 
 
-def calc_rmsd(predicted, target):
-    aligned = kabsch_align(predicted, target)
+def calc_rmsd(predicted, target, allow_reflection=False):
+    aligned = kabsch_align(predicted, target, allow_reflection=allow_reflection)
     return float(np.sqrt(np.mean(np.sum((aligned - target) ** 2, axis=1))))
 
 
@@ -143,8 +146,15 @@ def run_evaluation(args):
             predicted = np.asarray(pred_atoms.positions, dtype=float)
             target = np.asarray(true_ts["positions"], dtype=float)
             rmsd = calc_rmsd(predicted, target)
+            rmsd_reflection = calc_rmsd(
+                predicted, target, allow_reflection=True
+            )
             dmae = calc_dmae(predicted, target)
-            if not math.isfinite(rmsd) or not math.isfinite(dmae):
+            if (
+                not math.isfinite(rmsd)
+                or not math.isfinite(rmsd_reflection)
+                or not math.isfinite(dmae)
+            ):
                 raise RuntimeError(f"Non-finite metrics for {formula}/{reaction}")
             results.append(
                 {
@@ -152,11 +162,15 @@ def run_evaluation(args):
                     "formula": formula,
                     "reaction": reaction,
                     "rmsd": rmsd,
+                    "rmsd_reflection": rmsd_reflection,
                     "dmae": dmae,
                 }
             )
 
     rmsd_summary = summarize([row["rmsd"] for row in results])
+    rmsd_reflection_summary = summarize(
+        [row["rmsd_reflection"] for row in results]
+    )
     dmae_summary = summarize([row["dmae"] for row in results])
 
     if args.output_csv:
@@ -165,7 +179,14 @@ def run_evaluation(args):
         with output_path.open("w", newline="", encoding="utf-8") as output:
             writer = csv.DictWriter(
                 output,
-                fieldnames=("index", "formula", "reaction", "rmsd", "dmae"),
+                fieldnames=(
+                    "index",
+                    "formula",
+                    "reaction",
+                    "rmsd",
+                    "rmsd_reflection",
+                    "dmae",
+                ),
             )
             writer.writeheader()
             writer.writerows(results)
@@ -174,6 +195,11 @@ def run_evaluation(args):
     print(
         "RMSD mean={mean:.6f} median={median:.6f} min={min:.6f} max={max:.6f}".format(
             **rmsd_summary
+        )
+    )
+    print(
+        "RMSD(reflection) mean={mean:.6f} median={median:.6f} min={min:.6f} max={max:.6f}".format(
+            **rmsd_reflection_summary
         )
     )
     print(
