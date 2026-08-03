@@ -264,7 +264,10 @@ python -m Scripts.infer_ts1x_xyz   --config Configs/Dynamics.yml   --checkpoint 
 修复1x的代码
 python -m Scripts.infer_ts1x_xyz   --config Configs/Dynamics.yml   --checkpoint logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/checkpoints/checkpoint_best.pth   --hdf5 Data/Transition1x.h5   --output logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/test_xyz_fixed  --device cuda
 修复1x的代码+retrain
+2025
 python -m Scripts.infer_ts1x_xyz   --config Configs/Dynamics.yml   --checkpoint logs/dynamics_flow/tsdfm_ts1x_paper_seed2025_2026_07_31__06_55_55/checkpoints/checkpoint_best.pth   --hdf5 Data/Transition1x.h5   --output logs/dynamics_flow/tsdfm_ts1x_paper_seed2025_2026_07_31__06_55_55/test_xyz_fixed  --device cuda
+2026
+python -m Scripts.infer_ts1x_xyz   --config Configs/Dynamics.yml   --checkpoint logs/dynamics_flow/tsdfm_ts1x_paper_seed2026_2026_07_31__06_56_15/checkpoints/checkpoint_best.pth   --hdf5 Data/Transition1x.h5   --output logs/dynamics_flow/tsdfm_ts1x_paper_seed2026_2026_07_31__06_56_15/test_xyz_fixed  --device cuda
 
 
 """

@@ -193,6 +193,10 @@ if __name__ == "__main__":
 """
 python -m Scripts.evaluate_ts1x_xyz --hdf5 Data/Transition1x.h5 --pred-dir logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/test_xyz_fixed --output-csv logs/dynamics_flow/tsdfm_ts1x_2026_07_08__10_07_48/test_xyz_fixed/metrics.csv
 
+
 retrain的推理
+2025
 python -m Scripts.evaluate_ts1x_xyz --hdf5 Data/Transition1x.h5 --pred-dir logs/dynamics_flow/tsdfm_ts1x_paper_seed2025_2026_07_31__06_55_55/test_xyz_fixed --output-csv logs/dynamics_flow/tsdfm_ts1x_paper_seed2025_2026_07_31__06_55_55/test_xyz_fixed/metrics.csv
+2026
+python -m Scripts.evaluate_ts1x_xyz --hdf5 Data/Transition1x.h5 --pred-dir logs/dynamics_flow/tsdfm_ts1x_paper_seed2026_2026_07_31__06_56_15/test_xyz_fixed --output-csv logs/dynamics_flow/tsdfm_ts1x_paper_seed2026_2026_07_31__06_56_15/test_xyz_fixed/metrics.csv
 """
