@@ -7,7 +7,6 @@ source ~/.bashrc
 conda activate reactot
 
 cd /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM
-mkdir -p logs
 
 export CUDA_VISIBLE_DEVICES="${GPU_ID:-0}"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-2}"
