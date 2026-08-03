@@ -54,6 +54,16 @@ python -m Scripts.evaluate_ts1x_xyz \
   --output-csv logs/dynamics_flow/<run>/test_xyz/metrics.csv
 ```
 
+To separate model distance error from coordinate reconstruction error, run the
+oracle reconstruction check, which reconstructs coordinates from exact TS
+distance matrices:
+
+```bash
+python -m Scripts.check_ts1x_reconstruction_oracle \
+  --hdf5 Data/Transition1x.h5 \
+  --output-csv logs/oracle_reconstruction_metrics.csv
+```
+
 For server training, keep `data.batch_size: 32` for paper reproduction. Improve
 GPU utilization with `data.num_workers`, `pin_memory`, `persistent_workers`,
 and `prefetch_factor` instead of increasing the batch size. See

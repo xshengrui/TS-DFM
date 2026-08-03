@@ -22,7 +22,7 @@ result for Transition1x direct prediction.
 | Training noise | sigma 0.1 | `train.random_noise: true`, `train.noise_scale: 0.1` |
 | ODE step size | 0.05 | Inference default is `--step-size 0.05` |
 | Coordinate reconstruction | Linear interpolation from reactant/product, weighted L-BFGS | `Scripts/infer_ts1x_xyz.py` uses `linear_interp_lbfgs` |
-| RMSD metric | Kabsch-aligned coordinate RMSD | `Scripts/evaluate_ts1x_xyz.py` |
+| RMSD metric | Kabsch-aligned coordinate RMSD | `Scripts/evaluate_ts1x_xyz.py`; it also reports a reflection-allowed RMSD matching the repository Kabsch convention |
 | DMAE metric | Mean absolute pairwise-distance error | `Scripts/evaluate_ts1x_xyz.py` |
 
 ## Important Findings
@@ -40,6 +40,18 @@ The old checkpoint evaluated with the corrected inference/evaluation pipeline:
 
 Since DMAE is also high, the gap is not only a coordinate reconstruction issue.
 The learned distance matrix is worse than the paper result.
+
+For new runs where DMAE is close to the paper but RMSD mean remains high, run:
+
+```bash
+python -m Scripts.check_ts1x_reconstruction_oracle \
+  --hdf5 Data/Transition1x.h5 \
+  --output-csv logs/oracle_reconstruction_metrics.csv
+```
+
+If the oracle reconstruction has near-zero RMSD, remaining high-RMSD cases are
+mainly model-distance outliers. If the oracle reconstruction has high RMSD for
+the same reactions, the coordinate reconstruction procedure is the bottleneck.
 
 ## GPU Utilization
 
