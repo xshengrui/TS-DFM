@@ -70,6 +70,36 @@ def weighted_distance_loss(coordinates, target_distances, src, dst, epsilon=1e-6
     return ((reconstructed - target_distances).square() * weights).sum()
 
 
+def optimize_coordinates_from_distances(
+    initial,
+    distance_matrix,
+    max_iter=100,
+    lr=0.1,
+    epsilon=1e-6,
+):
+    atom_count = initial.shape[0]
+    mask = ~torch.eye(atom_count, dtype=torch.bool, device=initial.device)
+    src, dst = torch.where(mask)
+    target_distances = distance_matrix[src, dst].detach()
+
+    coordinates = initial.clone().detach().requires_grad_(True)
+    optimizer = LBFGS([coordinates], max_iter=max_iter, lr=lr)
+
+    def closure():
+        optimizer.zero_grad()
+        loss = weighted_distance_loss(
+            coordinates, target_distances, src, dst, epsilon=epsilon
+        )
+        loss.backward()
+        return loss
+
+    optimizer.step(closure)
+    loss = weighted_distance_loss(
+        coordinates, target_distances, src, dst, epsilon=epsilon
+    )
+    return coordinates.detach(), loss.detach()
+
+
 def pairwise_dist_to_coord_mds(
     reactant_pos,
     product_pos,
@@ -93,26 +123,13 @@ def pairwise_dist_to_coord_mds(
     reference = 0.5 * (reactant_pos + product_pos)
     initial = align_to_reference(initial, reference).detach()
 
-    mask = ~torch.eye(atom_count, dtype=torch.bool, device=reactant_pos.device)
-    src, dst = torch.where(mask)
-    target_distances = distance_matrix[src, dst].detach()
-
-    coordinates = initial.clone().requires_grad_(True)
-    optimizer = LBFGS([coordinates], max_iter=max_iter, lr=lr)
-
-    def closure():
-        optimizer.zero_grad()
-        loss = weighted_distance_loss(
-            coordinates, target_distances, src, dst, epsilon=epsilon
-        )
-        loss.backward()
-        return loss
-
-    optimizer.step(closure)
-    loss = weighted_distance_loss(
-        coordinates, target_distances, src, dst, epsilon=epsilon
+    return optimize_coordinates_from_distances(
+        initial,
+        distance_matrix,
+        max_iter=max_iter,
+        lr=lr,
+        epsilon=epsilon,
     )
-    return coordinates.detach(), loss.detach()
 
 
 def pairwise_dist_to_coord_linear_interp(
@@ -136,23 +153,62 @@ def pairwise_dist_to_coord_linear_interp(
     distance_matrix = complete_distance_matrix(pairwise_distance_ts_pred, atom_count)
     initial = 0.5 * (reactant_pos + product_pos)
 
-    mask = ~torch.eye(atom_count, dtype=torch.bool, device=reactant_pos.device)
-    src, dst = torch.where(mask)
-    target_distances = distance_matrix[src, dst].detach()
-
-    coordinates = initial.clone().detach().requires_grad_(True)
-    optimizer = LBFGS([coordinates], max_iter=max_iter, lr=lr)
-
-    def closure():
-        optimizer.zero_grad()
-        loss = weighted_distance_loss(
-            coordinates, target_distances, src, dst, epsilon=epsilon
-        )
-        loss.backward()
-        return loss
-
-    optimizer.step(closure)
-    loss = weighted_distance_loss(
-        coordinates, target_distances, src, dst, epsilon=epsilon
+    return optimize_coordinates_from_distances(
+        initial,
+        distance_matrix,
+        max_iter=max_iter,
+        lr=lr,
+        epsilon=epsilon,
     )
-    return coordinates.detach(), loss.detach()
+
+
+def pairwise_dist_to_coord_multi_start(
+    reactant_pos,
+    product_pos,
+    pairwise_distance_ts_pred,
+    max_iter=100,
+    lr=0.1,
+    epsilon=1e-6,
+    restarts=8,
+    noise_scale=0.05,
+    seed=0,
+):
+    if restarts <= 0:
+        raise ValueError("restarts must be greater than zero")
+    if noise_scale < 0:
+        raise ValueError("noise_scale cannot be negative")
+
+    atom_count = reactant_pos.shape[0]
+    distance_matrix = complete_distance_matrix(pairwise_distance_ts_pred, atom_count)
+    reference = 0.5 * (reactant_pos + product_pos)
+    initials = [reference]
+    if restarts > 1:
+        initials.append(align_to_reference(classical_mds(distance_matrix, 3), reference))
+
+    generator = torch.Generator(device=reactant_pos.device)
+    generator.manual_seed(int(seed))
+    while len(initials) < restarts:
+        noise = torch.randn(
+            reference.shape,
+            dtype=reference.dtype,
+            device=reference.device,
+            generator=generator,
+        )
+        initials.append(reference + noise * noise_scale)
+
+    best_coordinates = None
+    best_loss = None
+    best_index = 0
+    for index, initial in enumerate(initials):
+        coordinates, loss = optimize_coordinates_from_distances(
+            initial,
+            distance_matrix,
+            max_iter=max_iter,
+            lr=lr,
+            epsilon=epsilon,
+        )
+        if best_loss is None or loss < best_loss:
+            best_coordinates = coordinates
+            best_loss = loss
+            best_index = index
+    return best_coordinates, best_loss, best_index

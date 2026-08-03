@@ -37,6 +37,18 @@ def build_parser():
         help="L-BFGS learning rate for coordinate reconstruction",
     )
     parser.add_argument(
+        "--reconstruction-restarts",
+        type=int,
+        default=1,
+        help="Number of coordinate reconstruction initializations",
+    )
+    parser.add_argument(
+        "--reconstruction-noise-scale",
+        type=float,
+        default=0.05,
+        help="Noise scale for random reconstruction restarts",
+    )
+    parser.add_argument(
         "--max-items",
         type=int,
         help="Optional number of split records to check",
@@ -63,7 +75,10 @@ def run_check(args):
     from Data.Transition1x import generator
     from Scripts.evaluate_ts1x_xyz import calc_dmae, calc_rmsd
     from Utils import Kabsch_alignment, generate_fully_connected
-    from Utils.distance_geometry import pairwise_dist_to_coord_linear_interp
+    from Utils.distance_geometry import (
+        pairwise_dist_to_coord_linear_interp,
+        pairwise_dist_to_coord_multi_start,
+    )
 
     hdf5_path = Path(args.hdf5)
     split_path = Path(args.split_file)
@@ -74,6 +89,10 @@ def run_check(args):
         raise ValueError("--lbfgs-max-iter must be greater than zero")
     if args.lbfgs_lr <= 0:
         raise ValueError("--lbfgs-lr must be greater than zero")
+    if args.reconstruction_restarts <= 0:
+        raise ValueError("--reconstruction-restarts must be greater than zero")
+    if args.reconstruction_noise_scale < 0:
+        raise ValueError("--reconstruction-noise-scale cannot be negative")
 
     device = torch.device(args.device)
     with split_path.open("rb") as source:
@@ -104,13 +123,30 @@ def run_check(args):
 
             src, dst = generate_fully_connected(batch)
             exact_ts_dist = torch.linalg.vector_norm(ts_pos[src] - ts_pos[dst], dim=-1)
-            pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
-                reactant_pos,
-                product_pos,
-                exact_ts_dist,
-                max_iter=args.lbfgs_max_iter,
-                lr=args.lbfgs_lr,
-            )
+            reconstruction_selected_start = 0
+            if args.reconstruction_restarts == 1:
+                pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
+                    reactant_pos,
+                    product_pos,
+                    exact_ts_dist,
+                    max_iter=args.lbfgs_max_iter,
+                    lr=args.lbfgs_lr,
+                )
+            else:
+                (
+                    pred_pos,
+                    reconstruction_loss,
+                    reconstruction_selected_start,
+                ) = pairwise_dist_to_coord_multi_start(
+                    reactant_pos,
+                    product_pos,
+                    exact_ts_dist,
+                    max_iter=args.lbfgs_max_iter,
+                    lr=args.lbfgs_lr,
+                    restarts=args.reconstruction_restarts,
+                    noise_scale=args.reconstruction_noise_scale,
+                    seed=index,
+                )
 
             predicted = pred_pos.detach().cpu().numpy()
             target = ts_pos.detach().cpu().numpy()
@@ -125,6 +161,7 @@ def run_check(args):
                     ),
                     "dmae": calc_dmae(predicted, target),
                     "reconstruction_loss": float(reconstruction_loss.cpu().item()),
+                    "reconstruction_selected_start": reconstruction_selected_start,
                 }
             )
 
@@ -142,6 +179,7 @@ def run_check(args):
                     "rmsd_reflection",
                     "dmae",
                     "reconstruction_loss",
+                    "reconstruction_selected_start",
                 ),
             )
             writer.writeheader()

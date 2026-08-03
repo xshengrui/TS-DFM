@@ -41,6 +41,22 @@ def build_parser():
         help="L-BFGS learning rate for coordinate reconstruction (default: 0.1)",
     )
     parser.add_argument(
+        "--reconstruction-restarts",
+        type=int,
+        default=1,
+        help=(
+            "Number of coordinate reconstruction initializations. 1 preserves "
+            "the paper linear-interpolation reconstruction; >1 enables robust "
+            "multi-start reconstruction."
+        ),
+    )
+    parser.add_argument(
+        "--reconstruction-noise-scale",
+        type=float,
+        default=0.05,
+        help="Noise scale for robust reconstruction random restarts (default: 0.05)",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Allow overwriting an existing inference output directory",
@@ -82,7 +98,10 @@ def run_inference(args):
         generate_fully_connected,
         seed_all,
     )
-    from Utils.distance_geometry import pairwise_dist_to_coord_linear_interp
+    from Utils.distance_geometry import (
+        pairwise_dist_to_coord_linear_interp,
+        pairwise_dist_to_coord_multi_start,
+    )
 
     config_path = Path(args.config)
     checkpoint_path = Path(args.checkpoint)
@@ -105,6 +124,10 @@ def run_inference(args):
         raise ValueError("--lbfgs-max-iter must be greater than zero")
     if args.lbfgs_lr <= 0:
         raise ValueError("--lbfgs-lr must be greater than zero")
+    if args.reconstruction_restarts <= 0:
+        raise ValueError("--reconstruction-restarts must be greater than zero")
+    if args.reconstruction_noise_scale < 0:
+        raise ValueError("--reconstruction-noise-scale cannot be negative")
     if args.device.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError(f"CUDA was requested ({args.device}) but is not available")
 
@@ -142,6 +165,8 @@ def run_inference(args):
         "reconstruction_loss",
         "lbfgs_max_iter",
         "lbfgs_lr",
+        "reconstruction_restarts",
+        "reconstruction_selected_start",
     )
 
     with (
@@ -196,13 +221,30 @@ def run_inference(args):
                     ).detach()
 
                 # Coordinate reconstruction uses LBFGS and therefore must run with gradients.
-                pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
-                    reactant_pos,
-                    product_pos,
-                    dist_pred,
-                    max_iter=args.lbfgs_max_iter,
-                    lr=args.lbfgs_lr,
-                )
+                reconstruction_selected_start = 0
+                if args.reconstruction_restarts == 1:
+                    pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
+                        reactant_pos,
+                        product_pos,
+                        dist_pred,
+                        max_iter=args.lbfgs_max_iter,
+                        lr=args.lbfgs_lr,
+                    )
+                else:
+                    (
+                        pred_pos,
+                        reconstruction_loss,
+                        reconstruction_selected_start,
+                    ) = pairwise_dist_to_coord_multi_start(
+                        reactant_pos,
+                        product_pos,
+                        dist_pred,
+                        max_iter=args.lbfgs_max_iter,
+                        lr=args.lbfgs_lr,
+                        restarts=args.reconstruction_restarts,
+                        noise_scale=args.reconstruction_noise_scale,
+                        seed=config.train.seed + index,
+                    )
                 pred_pos = pred_pos.detach()
                 reconstruction_loss = float(reconstruction_loss.detach().cpu().item())
                 if not torch.isfinite(pred_pos).all() or not torch.isfinite(
@@ -218,8 +260,14 @@ def run_inference(args):
                 atoms.info.update(
                     formula=str(formula),
                     reaction=str(reaction),
-                    reconstruction_method="linear_interp_lbfgs",
+                    reconstruction_method=(
+                        "linear_interp_lbfgs"
+                        if args.reconstruction_restarts == 1
+                        else "multi_start_lbfgs"
+                    ),
                     reconstruction_loss=reconstruction_loss,
+                    reconstruction_restarts=args.reconstruction_restarts,
+                    reconstruction_selected_start=reconstruction_selected_start,
                 )
                 write(output_dir / filename, atoms, format="extxyz")
 
@@ -230,10 +278,16 @@ def run_inference(args):
                         "reaction": reaction,
                         "atom_count": len(x),
                         "predicted_xyz": filename,
-                        "reconstruction_method": "linear_interp_lbfgs",
+                        "reconstruction_method": (
+                            "linear_interp_lbfgs"
+                            if args.reconstruction_restarts == 1
+                            else "multi_start_lbfgs"
+                        ),
                         "reconstruction_loss": reconstruction_loss,
                         "lbfgs_max_iter": args.lbfgs_max_iter,
                         "lbfgs_lr": args.lbfgs_lr,
+                        "reconstruction_restarts": args.reconstruction_restarts,
+                        "reconstruction_selected_start": reconstruction_selected_start,
                     }
                 )
                 manifest_file.flush()

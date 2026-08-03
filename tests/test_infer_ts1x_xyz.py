@@ -35,6 +35,7 @@ class Transition1xXyzInferenceTests(unittest.TestCase):
             "--output",
             "--lbfgs-max-iter",
             "--lbfgs-lr",
+            "--reconstruction-restarts",
         ):
             self.assertIn(option, result.stdout)
 
