@@ -29,6 +29,34 @@ def build_parser():
         help="ODE midpoint integration step size (default: 0.05)",
     )
     parser.add_argument(
+        "--lbfgs-max-iter",
+        type=int,
+        default=100,
+        help="Maximum L-BFGS iterations for coordinate reconstruction (default: 100)",
+    )
+    parser.add_argument(
+        "--lbfgs-lr",
+        type=float,
+        default=0.1,
+        help="L-BFGS learning rate for coordinate reconstruction (default: 0.1)",
+    )
+    parser.add_argument(
+        "--reconstruction-restarts",
+        type=int,
+        default=1,
+        help=(
+            "Number of coordinate reconstruction initializations. 1 preserves "
+            "the paper linear-interpolation reconstruction; >1 enables robust "
+            "multi-start reconstruction."
+        ),
+    )
+    parser.add_argument(
+        "--reconstruction-noise-scale",
+        type=float,
+        default=0.05,
+        help="Noise scale for robust reconstruction random restarts (default: 0.05)",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         help="Process at most this many reactions per archive (for smoke tests)",
@@ -37,6 +65,11 @@ def build_parser():
         "--overwrite",
         action="store_true",
         help="Allow overwriting existing predicted XYZ files",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip existing predicted XYZ files instead of failing",
     )
     return parser
 
@@ -102,8 +135,11 @@ def run_inference(args):
     from Utils import (
         Kabsch_alignment,
         generate_fully_connected,
-        pairwise_dist_to_coord,
         seed_all,
+    )
+    from Utils.distance_geometry import (
+        pairwise_dist_to_coord_linear_interp,
+        pairwise_dist_to_coord_multi_start,
     )
 
     config_path = Path(args.config)
@@ -120,6 +156,16 @@ def run_inference(args):
             raise FileNotFoundError(f"{label} file does not exist: {path}")
     if args.step_size <= 0:
         raise ValueError("--step-size must be greater than zero")
+    if args.lbfgs_max_iter <= 0:
+        raise ValueError("--lbfgs-max-iter must be greater than zero")
+    if args.lbfgs_lr <= 0:
+        raise ValueError("--lbfgs-lr must be greater than zero")
+    if args.reconstruction_restarts <= 0:
+        raise ValueError("--reconstruction-restarts must be greater than zero")
+    if args.reconstruction_noise_scale < 0:
+        raise ValueError("--reconstruction-noise-scale cannot be negative")
+    if args.overwrite and args.skip_existing:
+        raise ValueError("--overwrite and --skip-existing cannot be used together")
     if args.limit is not None and args.limit <= 0:
         raise ValueError("--limit must be greater than zero")
     if args.device.startswith("cuda") and not torch.cuda.is_available():
@@ -146,10 +192,10 @@ def run_inference(args):
         output_dir = output_root / dataset
         output_dir.mkdir(parents=True, exist_ok=True)
         existing = list(output_dir.glob("*_pred.xyz"))
-        if existing and not args.overwrite:
+        if existing and not args.overwrite and not args.skip_existing:
             raise FileExistsError(
                 f"{output_dir} already contains {len(existing)} predicted XYZ files; "
-                "use --overwrite to replace them"
+                "use --overwrite to replace them or --skip-existing to resume"
             )
 
         manifest_path = output_dir / "manifest.csv"
@@ -159,9 +205,17 @@ def run_inference(args):
             "reaction",
             "atom_count",
             "predicted_xyz",
+            "status",
+            "reconstruction_method",
             "reconstruction_loss",
+            "lbfgs_max_iter",
+            "lbfgs_lr",
+            "reconstruction_restarts",
+            "reconstruction_selected_start",
         )
         processed = 0
+        generated = 0
+        skipped = 0
 
         with (
             tarfile.open(archive_path, mode="r:gz") as archive,
@@ -181,6 +235,33 @@ def run_inference(args):
                     product_atoms, product_pos = parse_xyz(product_text)
                     if not torch.equal(reactant_atoms, product_atoms):
                         raise ValueError("R.xyz and P.xyz have different atom ordering")
+
+                    filename = make_output_filename(index, dataset, reaction)
+                    if args.skip_existing and (output_dir / filename).is_file():
+                        writer.writerow(
+                            {
+                                "index": index,
+                                "dataset": dataset,
+                                "reaction": reaction,
+                                "atom_count": int(reactant_atoms.numel()),
+                                "predicted_xyz": filename,
+                                "status": "skipped",
+                                "reconstruction_method": "",
+                                "reconstruction_loss": "",
+                                "lbfgs_max_iter": args.lbfgs_max_iter,
+                                "lbfgs_lr": args.lbfgs_lr,
+                                "reconstruction_restarts": args.reconstruction_restarts,
+                                "reconstruction_selected_start": "",
+                            }
+                        )
+                        manifest_file.flush()
+                        processed += 1
+                        skipped += 1
+                        print(
+                            f"[{dataset} {processed}] {reaction} -> {filename} (skipped)",
+                            flush=True,
+                        )
+                        continue
 
                     x = reactant_atoms.to(device)
                     reactant_pos = reactant_pos.to(device)
@@ -209,9 +290,30 @@ def run_inference(args):
                             step_size=args.step_size,
                         ).detach()
 
-                    pred_pos, reconstruction_loss = pairwise_dist_to_coord(
-                        x, reactant_pos, product_pos, dist_pred
-                    )
+                    reconstruction_selected_start = 0
+                    if args.reconstruction_restarts == 1:
+                        pred_pos, reconstruction_loss = pairwise_dist_to_coord_linear_interp(
+                            reactant_pos,
+                            product_pos,
+                            dist_pred,
+                            max_iter=args.lbfgs_max_iter,
+                            lr=args.lbfgs_lr,
+                        )
+                    else:
+                        (
+                            pred_pos,
+                            reconstruction_loss,
+                            reconstruction_selected_start,
+                        ) = pairwise_dist_to_coord_multi_start(
+                            reactant_pos,
+                            product_pos,
+                            dist_pred,
+                            max_iter=args.lbfgs_max_iter,
+                            lr=args.lbfgs_lr,
+                            restarts=args.reconstruction_restarts,
+                            noise_scale=args.reconstruction_noise_scale,
+                            seed=config.train.seed + index,
+                        )
                     pred_pos = pred_pos.detach()
                     reconstruction_loss = float(
                         reconstruction_loss.detach().cpu().item()
@@ -223,7 +325,11 @@ def run_inference(args):
                             "coordinate reconstruction produced non-finite values"
                         )
 
-                    filename = make_output_filename(index, dataset, reaction)
+                    reconstruction_method = (
+                        "linear_interp_lbfgs"
+                        if args.reconstruction_restarts == 1
+                        else "multi_start_lbfgs"
+                    )
                     atoms = Atoms(
                         numbers=x.detach().cpu().numpy(),
                         positions=pred_pos.cpu().numpy(),
@@ -231,7 +337,10 @@ def run_inference(args):
                     atoms.info.update(
                         dataset=dataset,
                         reaction=reaction,
+                        reconstruction_method=reconstruction_method,
                         reconstruction_loss=reconstruction_loss,
+                        reconstruction_restarts=args.reconstruction_restarts,
+                        reconstruction_selected_start=reconstruction_selected_start,
                     )
                     write(output_dir / filename, atoms, format="extxyz")
 
@@ -242,11 +351,18 @@ def run_inference(args):
                             "reaction": reaction,
                             "atom_count": len(x),
                             "predicted_xyz": filename,
+                            "status": "generated",
+                            "reconstruction_method": reconstruction_method,
                             "reconstruction_loss": reconstruction_loss,
+                            "lbfgs_max_iter": args.lbfgs_max_iter,
+                            "lbfgs_lr": args.lbfgs_lr,
+                            "reconstruction_restarts": args.reconstruction_restarts,
+                            "reconstruction_selected_start": reconstruction_selected_start,
                         }
                     )
                     manifest_file.flush()
                     processed += 1
+                    generated += 1
                 except Exception as exc:
                     raise RuntimeError(
                         f"Inference failed for {dataset} reaction {index}: {reaction}"
@@ -254,7 +370,10 @@ def run_inference(args):
 
                 print(f"[{dataset} {processed}] {reaction} -> {filename}", flush=True)
 
-        print(f"Generated {processed} predicted TS structures in {output_dir}")
+        print(
+            f"Handled {processed} reactions in {output_dir} "
+            f"(generated={generated}, skipped={skipped})"
+        )
         print(f"Manifest: {manifest_path}")
 
 
