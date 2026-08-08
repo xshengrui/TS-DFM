@@ -310,6 +310,9 @@ def generate_mixed_dataloader_dynamics(
     batch_size,
     seed,
     num_workers=0,
+    pin_memory=False,
+    persistent_workers=False,
+    prefetch_factor=None,
     rgd1_expected_count=RGD1_EXPECTED_COUNT,
     transition1x_split_dir="Data",
 ):
@@ -339,7 +342,11 @@ def generate_mixed_dataloader_dynamics(
     loader_options = {
         "batch_size": batch_size,
         "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "persistent_workers": persistent_workers and num_workers > 0,
     }
+    if num_workers > 0 and prefetch_factor is not None:
+        loader_options["prefetch_factor"] = prefetch_factor
     return {
         "train": DataLoader(train, **loader_options),
         "val": DataLoader(val, **loader_options),

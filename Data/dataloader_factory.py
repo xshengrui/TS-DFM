@@ -28,4 +28,7 @@ def build_dynamics_dataloaders(config):
         batch_size=data_config.batch_size,
         seed=config.train.seed,
         num_workers=getattr(data_config, "num_workers", 0),
+        pin_memory=getattr(data_config, "pin_memory", False),
+        persistent_workers=getattr(data_config, "persistent_workers", False),
+        prefetch_factor=getattr(data_config, "prefetch_factor", None),
     )

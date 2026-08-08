@@ -4,6 +4,8 @@ train:
   save_path: logs/dynamics_flow_mixed
   log_interval: 10
   val_interval: 1
+  random_noise: true
+  noise_scale: 0.1
 
 optimizer:
   lr: 0.0005
@@ -19,7 +21,10 @@ data:
   transition1x_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5  # Set to the Transition1x HDF5 file.
   rgd1_cache_path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/processed/rgd1_full
   batch_size: 64
-  num_workers: 4
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
 
 dynamic_model:
   parameters:
