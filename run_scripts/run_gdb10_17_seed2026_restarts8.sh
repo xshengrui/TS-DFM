@@ -1,10 +1,10 @@
-#!/bin/bash
-set -euo pipefail
+# #!/bin/bash
+# set -euo pipefail
 
-# Infer GDB-10 and GDB-17 with the seed-2026 Transition1x checkpoint and
-# the robust 8-restart coordinate reconstruction used in the latest TS1x run.
-source ~/.bashrc
-conda activate reactot
+# # Infer GDB-10 and GDB-17 with the seed-2026 Transition1x checkpoint and
+# # the robust 8-restart coordinate reconstruction used in the latest TS1x run.
+# source ~/.bashrc
+# conda activate reactot
 
 cd /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM
 
