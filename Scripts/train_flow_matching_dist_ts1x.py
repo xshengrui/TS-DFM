@@ -22,6 +22,7 @@ from Model.backbone import generate_backbone
 from Model.head import generate_head
 from Model.model import MDNet
 from Utils import get_logger, get_new_log_dir, seed_all, Kabsch_alignment, generate_fully_connected, calc_norm, pairwise_dist_to_coord
+from Utils.checkpoint_loading import load_model_only
 import math
 import gc
 
@@ -30,7 +31,17 @@ parser.add_argument('--config_file', required=True)
 parser.add_argument('--log_prefix', default='logs')
 parser.add_argument('--notes', default=' ')
 parser.add_argument('--device', default='cuda')
-parser.add_argument('--resume_status', default=' ')
+checkpoint_group = parser.add_mutually_exclusive_group()
+checkpoint_group.add_argument(
+    '--resume_status',
+    default=' ',
+    help='Resume model, optimizer, and scheduler state for the same training run.',
+)
+checkpoint_group.add_argument(
+    '--init_checkpoint',
+    default=None,
+    help='Initialize model weights only; optimizer and scheduler start fresh.',
+)
 parser.add_argument('--random', action='store_true', help='Enable noise in flow matching training.')
 parser.add_argument('--no-random', action='store_true', help='Disable config-defined training noise.')
 parser.add_argument('--sigma', default=None, type=float, help='Override config.train.noise_scale.')
@@ -85,6 +96,18 @@ logger = get_logger('train', log_dir)
 
 #logger.info(args)
 logger.info(config)
+
+if args.init_checkpoint is not None:
+    init_metadata = load_model_only(
+        dynamic_model,
+        args.init_checkpoint,
+        torch_module=torch,
+    )
+    logger.info(
+        "Initialized model weights only from %s (source epoch: %s)",
+        init_metadata["checkpoint_path"],
+        init_metadata["source_epoch"],
+    )
 
 best_val_loss = None
 

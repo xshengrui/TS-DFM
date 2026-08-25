@@ -1,0 +1,33 @@
+train:
+  seed: 2025
+  epochs: 500
+  save_path: logs/dynamics_flow_t1x_finetune
+  log_interval: 10
+  val_interval: 1
+  random_noise: true
+  noise_scale: 0.1
+
+optimizer:
+  lr: 0.0001
+  weight_decay: 1e-16
+
+scheduler:
+  min_lr: 0.000001
+  patience: 30
+  factor: 0.8
+  stop_tolerance: 100
+
+data:
+  path: /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM/Data/Transition1x.h5
+  batch_size: 32
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+
+dynamic_model:
+  parameters:
+    hidden_dim: 256
+    cutoff: 20.0
+    max_embedding: 100
+    num_layers: 12
