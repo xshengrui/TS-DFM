@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "Scripts" / "infer_reaction_archives_xyz.py"
+MIX_RUN_SCRIPT = ROOT / "run_scripts" / "infer_mix_gdb10_17.sh"
 
 
 def _load_module():
@@ -31,6 +32,19 @@ def _archive_with(files):
 
 
 class ReactionArchiveXyzInferenceTests(unittest.TestCase):
+    def test_mixed_gdb_runner_uses_mixed_model_and_both_archives(self):
+        self.assertTrue(MIX_RUN_SCRIPT.is_file(), "Mixed GDB runner is missing")
+
+        content = MIX_RUN_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("Configs/Dynamics_mixed.yml", content)
+        self.assertIn("logs/dynamics_flow_mixed", content)
+        self.assertIn("Data/GDB-10-rxn_raw.tar.gz", content)
+        self.assertIn("Data/GDB-17-rxn_raw.tar.gz", content)
+        self.assertIn("python -m Scripts.infer_reaction_archives_xyz", content)
+        self.assertIn('CHECKPOINT="${CHECKPOINT:-', content)
+        self.assertIn('RUN_DIR="${RUN_DIR:-', content)
+        self.assertIn("--skip-existing", content)
+
     def test_cli_accepts_multiple_archives(self):
         self.assertTrue(SCRIPT.is_file(), "Reaction archive inference CLI is missing")
 
