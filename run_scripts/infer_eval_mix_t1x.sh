@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Run Transition1x test-set inference and evaluation for a mixed-data checkpoint.
-source ~/.bashrc
-conda activate reactot
+# source ~/.bashrc
+# conda activate reactot
 
 cd /inspire/qb-ilm/project/chemicalreaction/czxs25220150/projects/TS-DFM
 
