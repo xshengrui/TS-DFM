@@ -2,7 +2,8 @@
 Data/Transition1x.h5
 Data/processed/
 *.zip
-
+.planning/*
+.codex
 logs/
 __pycache__/
 

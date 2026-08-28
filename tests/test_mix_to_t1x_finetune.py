@@ -44,6 +44,27 @@ class MixToT1xFinetuneTests(unittest.TestCase):
         self.assertIn('--init_checkpoint "${INIT_CHECKPOINT}"', content)
         self.assertIn('--config_file "${CONFIG_FILE}"', content)
 
+    def test_server_script_runs_two_independent_seeds_in_parallel(self):
+        content = RUN_SCRIPT.read_text(encoding="utf-8")
+
+        for required in (
+            'N_RUNS="${N_RUNS:-2}"',
+            'BASE_SEED="${BASE_SEED:-${SEED:-2025}}"',
+            'NUM_WORKERS_PER_RUN="${NUM_WORKERS_PER_RUN:-4}"',
+            'export CUDA_VISIBLE_DEVICES="${GPU_ID:-0}"',
+            'export OMP_NUM_THREADS="${OMP_NUM_THREADS:-2}"',
+            'export MKL_NUM_THREADS="${MKL_NUM_THREADS:-2}"',
+            "pids=()",
+            "for ((i = 0; i < N_RUNS; i++)); do",
+            "seed=$((BASE_SEED + i))",
+            'pids+=("$!")',
+            'for pid in "${pids[@]}"; do',
+            'if ! wait "$pid"; then',
+        ):
+            self.assertIn(required, content)
+
+        self.assertIn('> "logs/${prefix}.stdout.log" 2>&1 &', content)
+
 
 if __name__ == "__main__":
     unittest.main()
