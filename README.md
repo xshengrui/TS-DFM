@@ -108,6 +108,15 @@ The RGD1 CSV `dataset` column is intentionally ignored. CSV reaction IDs are
 used as the full-data whitelist, while validation and testing use only the
 unchanged Transition1x manifests in `Data/`.
 
+For the standard-capacity mixed-data comparison (128 hidden dimensions and
+6 layers), use `Configs/Dynamics_mixed_128x6.yml` and
+`bash run_scripts/run_mix_128x6.sh` in a prepared training environment.
+Set `DRY_RUN=1` to preview the command. This preserves the mixed baseline's
+batch size 128, noise, optimizer, data, and stopping rules; it trains from
+scratch and writes to `logs/dynamics_flow_mixed_128x6`.
+Use a submitted platform job for long training runs. See
+`docs/mix_128x6_experiment.md` for the comparison protocol and validation limits.
+
 The baseline methods are provided in the following folders:
 
 ````bash
